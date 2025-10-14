@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# 清理可能冲突的变量
+unset SCRIPT_DIR 2>/dev/null || true
+
 # 读取设置文件
 function get_config(){
 	while [[ "$*" != "" ]]; do
@@ -34,6 +37,8 @@ function read_config(){
 	ip_blacklist_path="/usr/bin/pushbot/api/ip_blacklist"
 	[ ! -z "$oui_dir" ] && [ "$oui_dir" -eq "1" ] && oui_base="${dir}oui_base.txt" || oui_base="/usr/bin/pushbot/oui_base.txt"
 	debuglevel=`echo "$debuglevel"` && [ -z "$debuglevel" ] && logfile="/dev/null" || logfile="${dir}pushbot.log"
+	# 确保日志目录存在
+	[ ! -z "$logfile" ] && [ "$logfile" != "/dev/null" ] && mkdir -p $(dirname "$logfile")
 	pushbot_blacklist=`echo "$pushbot_blacklist"|sed 's/ /\n/g'` 2>/dev/null
 	pushbot_whitelist=`echo "$pushbot_whitelist"|sed 's/ /\n/g'` 2>/dev/null
 	err_device_aliases=`echo "$err_device_aliases"|sed 's/ /\n/g'` 2>/dev/null
