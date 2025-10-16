@@ -188,23 +188,6 @@ a.default = "60"
 a.datatype = "and(uinteger,min(10))"
 a.description = translate("越短的时间时间响应越及时，但会占用更多的系统资源")
 
-a=s:taboption("basic", ListValue,"oui_data",translate("MAC设备厂商信息"))
-a.rmempty = true
-a.default="1"
-a:value("3",translate("禁用"))
-a:value("1",translate("本地模式（内置数据库）"))
-a:value("2",translate("网络模式（下载完整数据库）"))
-a:value("4",translate("实时在线查询"))
-a.description = translate([[<b>本地模式</b>：使用内置的常见厂商数据库（约800条记录，包含Apple、小米、华为、TP-Link等主流品牌），无需联网，推荐<br/>
-<b>网络模式</b>：首次启动时下载IEEE完整数据库（原始约4.5MB，处理后约1.2MB，包含3万+厂商），需联网<br/>
-<b>实时查询</b>：每次查询时联网获取（响应慢，不推荐，若无代理请勿使用）<br/>
-<b>禁用</b>：不显示厂商信息，只显示MAC地址]])
-
-a=s:taboption("basic", Flag,"oui_dir",translate("保存到内存"))
-a.rmempty = true
-a:depends("oui_data","1")
-a:depends("oui_data","2")
-a.description = translate("勾选后数据库保存到/tmp/pushbot/（重启后重新生成）<br/>不勾选保存到/usr/bin/pushbot/（永久保存，占用存储空间）<br/>本地模式约占用250KB，网络模式约占用1.2MB")
 
 a=s:taboption("basic", Flag,"reset_regularly",translate("每天零点重置流量数据"))
 a.rmempty = true

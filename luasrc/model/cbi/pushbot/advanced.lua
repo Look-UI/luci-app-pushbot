@@ -121,27 +121,43 @@ a.default = "10"
 a.datatype="uinteger"
 a:depends({public_ip_event="1"})
 
--- 智能设备名生成功能
-s = m:section(TypedSection, "pushbot", translate("智能设备名生成"))
-s.anonymous = true
+-- 主机名获取设置
+s2 = m:section(TypedSection, "pushbot", translate("主机名获取设置"))
+s2.anonymous = true
 
-a = s:option(Flag, "smart_device_name", translate("启用智能设备名生成"))
+a = s2:option(Flag, "hostname_from_modem", translate("从光猫获取主机名"))
 a.default = 0
 a.rmempty = true
-a.description = translate("当无法获取设备名时，自动生成有意义的名称")
+a.description = translate("尝试从光猫获取设备主机名，适用于光猫拨号上网场景")
 
-a = s:option(ListValue, "device_name_format", translate("设备名生成格式"))
-a:value("1", translate("厂商名_IP后两位 (如: Apple_100)"))
-a:value("2", translate("厂商名_设备类型_IP后两位 (如: Apple_Phone_100)"))
-a:value("3", translate("厂商名_完整IP (如: Apple_192.168.1.100)"))
-a.default = "1"
+a = s2:option(Value, "modem_ip", translate("光猫IP地址"))
 a.rmempty = true
-a:depends({smart_device_name="1"})
+a.description = translate("留空则自动检测光猫IP地址")
+a:depends({hostname_from_modem="1"})
 
-a = s:option(Flag, "device_type_detection", translate("启用设备类型检测"))
+a = s2:option(Flag, "hostname_from_mi", translate("从小米路由器获取主机名"))
 a.default = 0
 a.rmempty = true
-a:depends({smart_device_name="1", device_name_format="2"})
-a.description = translate("基于MAC地址前缀识别设备类型（iPhone、Android、Router等）")
+a.description = translate("尝试从小米路由器获取设备主机名")
+
+a = s2:option(Value, "mi_ip", translate("小米路由器IP地址"))
+a.rmempty = true
+a.description = translate("留空则使用默认网关地址")
+a:depends({hostname_from_mi="1"})
+
+a = s2:option(Flag, "hostname_from_ros", translate("从ROS获取主机名"))
+a.default = 0
+a.rmempty = true
+a.description = translate("尝试从RouterOS设备获取设备主机名，需要配置API访问")
+
+a = s2:option(Value, "ros_ip", translate("ROS设备IP地址"))
+a.rmempty = true
+a:depends({hostname_from_ros="1"})
+
+a = s2:option(Flag, "hostname_from_netbios", translate("通过NetBIOS查询主机名"))
+a.default = 0
+a.rmempty = true
+a.description = translate("使用NetBIOS协议查询设备主机名，需要安装samba客户端<br/>安装命令：opkg install samba-client")
+
 
 return m

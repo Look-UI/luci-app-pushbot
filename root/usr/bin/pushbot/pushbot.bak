@@ -199,6 +199,78 @@ function diy_send(){
 	curl -X POST -H "$content_type" -d "${data}" "${diyurl}"
 }
 
+# 设备MAC厂商信息管理
+function down_oui(){
+	# oui_data 配置：
+	# 1 = 本地模式（使用内置数据库）
+	# 2 = 网络模式（下载完整数据库）
+	# 3 = 禁用（不使用厂商信息）
+	# 4 = 实时在线查询
+	
+	# 如果禁用或实时查询，直接返回
+	[ -z "$oui_data" ] || [ "$oui_data" -eq "3" ] || [ "$oui_data" -eq "4" ] && return
+	
+	# 本地模式：使用内置数据库
+	if [ "$oui_data" -eq "1" ]; then
+		# 如果已经有有效的数据库文件，不再处理
+		if [ -f ${oui_base} ]; then
+			local logrow=$(grep -c "" ${oui_base} 2>/dev/null) || local logrow="0"
+			[ $logrow -ge "10" ] && return
+		fi
+		
+		# 复制内置数据库到目标位置
+		if [ -f "/usr/bin/pushbot/api/oui_base.txt" ]; then
+			cp -f /usr/bin/pushbot/api/oui_base.txt ${oui_base} 2>/dev/null
+			if [ -f ${oui_base} ]; then
+				echo "`date "+%Y-%m-%d %H:%M:%S"` 【初始化】使用内置厂商信息数据库（本地模式）" >> ${logfile}
+			else
+				echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】复制内置厂商信息失败，请检查文件权限" >> ${logfile}
+			fi
+		else
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】内置厂商信息文件不存在，请重新安装插件" >> ${logfile}
+		fi
+		return
+	fi
+	
+	# 网络模式：下载完整数据库
+	if [ "$oui_data" -eq "2" ]; then
+		# 检查是否已有有效数据库
+		if [ -f ${oui_base} ]; then
+			local logrow=$(grep -c "" ${oui_base} 2>/dev/null) || local logrow="0"
+			# 如果行数大于1000，认为是完整数据库
+			[ $logrow -gt "1000" ] && return
+			# 行数太少，删除
+			[ $logrow -lt "10" ] && rm -f ${oui_base} >/dev/null 2>&1
+		fi
+		
+		# 下载完整数据库
+		if [ ! -f ${oui_base} ]; then
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【初始化】厂商信息不存在，正在下载完整数据库（网络模式）..." >> ${logfile}
+			wget --no-check-certificate -t 3 -T 30 -O ${dir}oui.txt https://standards-oui.ieee.org/oui/oui.txt >/dev/null 2>&1
+			
+			if [ -f ${dir}oui.txt ]; then
+				# 提取 base 16 行
+				cat ${dir}oui.txt | grep "base 16" > ${oui_base} 2>/dev/null
+				local result_rows=$(grep -c "" ${oui_base} 2>/dev/null) || local result_rows="0"
+				
+				if [ $result_rows -gt "1000" ]; then
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【初始化】完整厂商信息下载成功（共 $result_rows 条记录）" >> ${logfile}
+				else
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】厂商信息下载异常（仅 $result_rows 条记录），将使用内置数据库" >> ${logfile}
+					rm -f ${oui_base} >/dev/null 2>&1
+					# 回退到内置数据库
+					[ -f "/usr/bin/pushbot/api/oui_base.txt" ] && cp -f /usr/bin/pushbot/api/oui_base.txt ${oui_base} 2>/dev/null
+				fi
+				rm -f ${dir}oui.txt >/dev/null 2>&1
+			else
+				echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】网络下载失败，使用内置数据库作为后备" >> ${logfile}
+				# 回退到内置数据库
+				[ -f "/usr/bin/pushbot/api/oui_base.txt" ] && cp -f /usr/bin/pushbot/api/oui_base.txt ${oui_base} 2>/dev/null
+			fi
+		fi
+		return
+	fi
+}
 
 # 清理临时文件
 function deltemp(){
@@ -369,6 +441,17 @@ function getname(){
 		[ ! -z "$tmp_name" ] && break
 	done
 	( ! echo "$tmp_name"|grep -q -w "unknown\|*" ) && [ ! -z "$tmp_name" ] && echo "$tmp_name" 2>/dev/null && return || unset tmp_name # 为unknown时重新读取
+	# 尝试从本地数据库查询（本地模式和网络模式都使用）
+	if [ -f "$oui_base" ]; then
+		local mac_prefix=$(echo "$2"|cut -c 1,2,4,5,7,8)
+		local tmp_name=$(cat $oui_base|grep -i $mac_prefix|sed -nr 's#^.*16)..(.*)#\1#gp'|sed 's/ /_/g'|head -n1)
+	fi
+	
+	# 实时在线查询模式
+	if [ -z "$tmp_name" ] && [ ! -z "$oui_data" ] && [ "$oui_data" -eq "4" ]; then
+		local mac_prefix=$(echo "$2"|cut -c 1,2,4,5,7,8)
+		local tmp_name=$(curl -sS -m 3 "https://standards-oui.ieee.org/oui/oui.txt"|grep -i $mac_prefix|sed -nr 's#^.*16)..(.*)#\1#gp'|sed 's/ /_/g'|head -n1)
+	fi
 	
 	# 智能主机名获取
 	if [ -z "$tmp_name" ] || [ "$tmp_name" = "unknown" ]; then
