@@ -153,36 +153,123 @@ function diy_send(){
 		get_wechat_token
 		[ $? -ne 0 ] && return 1
 		
-		# 如果配置了 media_id，使用图文消息类型
+		# 处理内容格式，让各个部分更清晰
+		local processed_content=`echo "${2}" | \
+			# 先处理换行符，确保内容在一行内
+			tr '\n' ' ' | sed 's/  */ /g' | \
+			# 添加主要标题标记（按顺序处理，避免冲突）
+			sed 's/系统运行状态/【系统运行状态】/g' | \
+			sed 's/设备温度/【设备温度】/g' | \
+			sed 's/WAN 口信息/【WAN 口信息】/g' | \
+			sed 's/现有在线设备/【现有在线设备】运行中：/g' | \
+			# 添加主要部分换行（在添加项目符号之前）
+			sed 's/【系统运行状态】/\n【系统运行状态】/g' | \
+			sed 's/【设备温度】/\n【设备温度】/g' | \
+			sed 's/【WAN 口信息】/\n【WAN 口信息】/g' | \
+			sed 's/【现有在线设备】运行中：/\n【现有在线设备】运行中：/g' | \
+			# 添加项目符号
+			sed 's/平均负载：/\n• 平均负载：/g' | \
+			sed 's/CPU占用：/\n• CPU占用：/g' | \
+			sed 's/内存占用：/\n• 内存占用：/g' | \
+			sed 's/全球互联：/\n• 全球互联：/g' | \
+			sed 's/运行时间：/\n• 运行时间：/g' | \
+			sed 's/CPU：/\n• CPU：/g' | \
+			sed 's/内网IP (LAN)：/\n• 内网IP (LAN)：/g' | \
+			sed 's/公网IP (WAN)：/\n• 公网IP (WAN)：/g' | \
+			sed 's/检测到二级路由模式/\n• 检测到二级路由模式/g' | \
+			# 处理设备名称，添加换行分隔（只匹配设备信息，不影响系统标题）
+			sed 's/【\([^】]*\)】/\n【\1】/g' | \
+			# 在设备信息前添加项目符号（通过匹配IP地址模式来识别设备信息）
+			sed 's/【\([^】]*\)】 \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)/\n• [\1] \2/g' | \
+			# 处理设备详情，使用 - 符号
+			sed 's/总计流量：/\n- 总计流量：/g' | \
+			sed 's/ 在线/\n- 在线/g'`
+		
+		# 检查消息类型：如果配置了 media_id，使用图文消息；否则使用文本消息
 		if [ ! -z "$wechat_media_id" ]; then
-			local diyurl=`/usr/bin/jq -r .url ${3}` && local diyurl=`eval echo ${diyurl}`
-			local content_type=`/usr/bin/jq -r '.content_type' ${3}`
-			
 			# 构建图文消息 JSON
-			cat > ${tempjsonpath} <<-EOF
-			{
-			  "touser": "${wechat_touser}",
-			  "msgtype": "mpnews",
-			  "agentid": ${wechat_agentid},
-			  "mpnews": {
-			    "articles": [
-			      {
-			        "title": "${1}",
-			        "thumb_media_id": "${wechat_media_id}",
-			        "author": "${device_name}",
-			        "content_source_url": "",
-			        "content": "${1}<br/><br/>${nowtime}<br/><br/>${2}",
-			        "digest": "${1}"
-			      }
-			    ]
-			  },
-			  "safe": 0
-			}
-			EOF
+			/usr/bin/jq -n \
+				--arg touser "${wechat_touser}" \
+				--arg agentid "${wechat_agentid}" \
+				--arg title "${1}" \
+				--arg media_id "${wechat_media_id}" \
+				--arg author "${device_name:-PushBot}" \
+				--arg content "${processed_content}" \
+				'{
+					"touser": $touser,
+					"msgtype": "mpnews",
+					"agentid": ($agentid | tonumber),
+					"mpnews": {
+						"articles": [{
+							"title": $title,
+							"thumb_media_id": $media_id,
+							"author": $author,
+							"content_source_url": "",
+							"content": $content,
+							"digest": $content
+						}]
+					},
+					"safe": 0
+				}' > ${tempjsonpath}
+		else
+			# 构建文本消息 JSON
+			/usr/bin/jq -n \
+				--arg touser "${wechat_touser}" \
+				--arg agentid "${wechat_agentid}" \
+				--arg content "${1}\n\n${processed_content}" \
+				'{
+					"touser": $touser,
+					"msgtype": "text",
+					"agentid": ($agentid | tonumber),
+					"text": {
+						"content": $content
+					},
+					"safe": 0
+				}' > ${tempjsonpath}
+		fi
+		
+		# 检查JSON文件是否生成成功
+		if [ ! -f "${tempjsonpath}" ] || [ ! -s "${tempjsonpath}" ]; then
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：JSON文件生成失败" >> ${logfile}
+			return 1
+		fi
+		
+		local diyurl=`/usr/bin/jq -r .url ${3}` && local diyurl=`eval echo ${diyurl}`
+		local content_type=`/usr/bin/jq -r '.content_type' ${3}`
+		local data="@${tempjsonpath}"
+		local response=`curl -s -X POST -H "$content_type" -d "${data}" "${diyurl}"`
+		
+		# 检查发送结果
+		local send_errcode=`echo "$response" | /usr/bin/jq -r '.errcode' 2>/dev/null`
+		if [ "$send_errcode" = "0" ]; then
+			return 0
+		else
+			local send_errmsg=`echo "$response" | /usr/bin/jq -r '.errmsg' 2>/dev/null`
+			if [ -z "$send_errcode" ] || [ "$send_errcode" = "null" ]; then
+				echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：API响应解析失败，原始响应: $response" >> ${logfile}
+				return 1
+			fi
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：消息发送失败 - $send_errmsg (错误码: $send_errcode)" >> ${logfile}
 			
-			local data="@${tempjsonpath}"
-			curl -X POST -H "$content_type" -d "${data}" "${diyurl}"
-			return $?
+			# 提供常见错误的解决建议
+			case "$send_errcode" in
+				40003)
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 40003 表示用户ID(ToUser)不正确" >> ${logfile}
+					;;
+				82001)
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 82001 表示应用ID(AgentId)不正确" >> ${logfile}
+					;;
+				60011)
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 60011 表示用户不存在" >> ${logfile}
+					;;
+				60020)
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 60020 表示应用可见范围不包含该用户" >> ${logfile}
+					;;
+				40007)
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 40007 表示图片ID(Media ID)无效，请检查配置" >> ${logfile}
+					;;
+			esac
+			return 1
 		fi
 	fi
 	
