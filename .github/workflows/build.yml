@@ -2,7 +2,7 @@ name: 编译 luci-app-pushbot
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, testing ]
     paths-ignore:
       - '**.md'
   workflow_dispatch:
@@ -116,9 +116,9 @@ jobs:
         if: steps.organize.outputs.status == 'success'
         with:
           name: luci-app-pushbot_${{matrix.arch}}_${{env.DATE}}
-          path: ${{env.RELEASE_PATH}}/*.ipk
+          path: ${{env.RELEASE_PATH}}/
 
-      - name: 发布到 Release
+      - name: 发布到 Release (Master分支)
         uses: softprops/action-gh-release@v1
         if: steps.organize.outputs.status == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/master'
         env:
@@ -136,7 +136,7 @@ jobs:
             
             ### 主要功能
             - ✅ 企业微信应用推送（支持文本和图文消息）
-            - ✅ 设备厂商信息识别（内置800+常见厂商）
+            - ✅ 智能主机名获取（替代OUI功能）
             - ✅ 完美支持二级路由环境
             - ✅ IP变更通知（显示新旧地址对比）
             - ✅ 支持多种推送方式：钉钉、企业微信、飞书、PushPlus、Bark等
@@ -160,4 +160,48 @@ jobs:
           files: ${{env.RELEASE_PATH}}/*.ipk
           draft: false
           prerelease: false
+
+      - name: 发布到 Release (Testing分支)
+        uses: softprops/action-gh-release@v1
+        if: steps.organize.outputs.status == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/testing'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: testing-v${{env.DATE}}-${{matrix.arch}}
+          name: PushBot Testing ${{env.DATE}} - ${{matrix.name}}
+          body: |
+            ## PushBot 插件 - Testing版本 ${{matrix.name}}
+            
+            ### 编译信息
+            - 编译时间: ${{env.DATE}}
+            - 目标架构: ${{matrix.arch}}
+            - 适配设备: ${{matrix.name}}
+            - 分支: testing
+            
+            ### 主要功能
+            - ✅ 企业微信应用推送（支持文本和图文消息）
+            - ✅ 智能主机名获取（替代OUI功能）
+            - ✅ 完美支持二级路由环境
+            - ✅ IP变更通知（显示新旧地址对比）
+            - ✅ 支持多种推送方式：钉钉、企业微信、飞书、PushPlus、Bark等
+            
+            ### 安装方法
+            ```bash
+            # 上传 IPK 文件到路由器后执行
+            opkg update
+            opkg install luci-app-pushbot_*.ipk
+            ```
+            
+            ### 依赖项
+            - iputils-arping
+            - curl
+            - jq (JSON 处理)
+            - wrtbwmon (可选，用于流量统计)
+            
+            ### 更新日志
+            详见: https://github.com/${{ github.repository }}/commits/testing
+            
+          files: ${{env.RELEASE_PATH}}/*.ipk
+          draft: false
+          prerelease: true
 
