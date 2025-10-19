@@ -111,16 +111,32 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
           echo "RELEASE_PATH=/tmp/release" >> $GITHUB_ENV
 
+      - name: 检查发布文件
+        if: steps.organize.outputs.status == 'success'
+        run: |
+          echo "检查发布目录内容:"
+          ls -la /tmp/release/
+          echo "检查IPK文件:"
+          find /tmp/release/ -name "*.ipk" -exec ls -la {} \;
+
       - name: 上传到 Artifacts
         uses: actions/upload-artifact@v4
         if: steps.organize.outputs.status == 'success'
         with:
           name: luci-app-pushbot_${{matrix.arch}}_${{env.DATE}}
-          path: ${{env.RELEASE_PATH}}/
+          path: /tmp/release/
+
+      - name: 检查Release条件 (Master分支)
+        if: steps.organize.outputs.status == 'success'
+        run: |
+          echo "当前分支: ${{ github.ref }}"
+          echo "是否为master分支: ${{ github.ref == 'refs/heads/master' }}"
+          echo "是否为testing分支: ${{ github.ref == 'refs/heads/testing' }}"
+          echo "事件类型: ${{ github.event_name }}"
 
       - name: 发布到 Release (Master分支)
         uses: softprops/action-gh-release@v1
-        if: steps.organize.outputs.status == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: steps.organize.outputs.status == 'success' && github.ref == 'refs/heads/master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -163,7 +179,7 @@ jobs:
 
       - name: 发布到 Release (Testing分支)
         uses: softprops/action-gh-release@v1
-        if: steps.organize.outputs.status == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/testing'
+        if: steps.organize.outputs.status == 'success' && github.ref == 'refs/heads/testing'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
