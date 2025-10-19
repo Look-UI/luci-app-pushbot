@@ -28,6 +28,7 @@ function read_config(){
 	"pushbot_sheep" "starttime" "endtime" "pushbot_whitelist" "pushbot_blacklist" "pushbot_interface" "MAC_online_list" "MAC_offline_list" \
 	"up_timeout" "down_timeout" "timeout_retry_count" "thread_num" "soc_code" "pve_host" "pve_port"\
 	"err_enable" "err_sheep_enable" "err_device_aliases" "network_err_event" "system_time_event" "autoreboot_time" "network_restart_time" "public_ip_event" "public_ip_retry_count" \
+	"device_aliases" "hostname_from_modem" "modem_ip" "hostname_from_mi" "mi_ip" "hostname_from_ros" "ros_ip" "hostname_from_netbios" \
 	"jsonpath" "dd_webhook" "we_webhook" "pp_token" "pp_channel" "pp_webhook" "pp_topic_enable" "pp_topic" "fs_webhook" "pushdeer_key" "pushdeer_srv_enable" "pushdeer_srv" "bark_srv_enable" "bark_srv" "bark_token" "bark_sound" "bark_icon" "bark_icon_enable" "bark_level" "wechat_corpid" "wechat_corpsecret" "wechat_agentid" "wechat_touser" "wechat_media_id"
 	
 	for str_version in "wrtbwmon" "iputils-arping" "curl" "iw"; do
@@ -42,6 +43,7 @@ function read_config(){
 	pushbot_blacklist=`echo "$pushbot_blacklist"|sed 's/ /\n/g'` 2>/dev/null
 	pushbot_whitelist=`echo "$pushbot_whitelist"|sed 's/ /\n/g'` 2>/dev/null
 	err_device_aliases=`echo "$err_device_aliases"|sed 's/ /\n/g'` 2>/dev/null
+	device_aliases=`echo "$device_aliases"|sed 's/ /\n/g'` 2>/dev/null
 	client_usage_whitelist=`echo "$client_usage_whitelist"|sed 's/ /\n/g'` 2>/dev/null
 	ip_white_list=`echo "$ip_white_list"|sed 's/ /\n/g'` 2>/dev/null
 	mark_mac_list="${MAC_online_list} ${MAC_offline_list}"
@@ -476,6 +478,13 @@ function getname(){
 	[ -f "${dir}ipAddress" ] && [ -z "$tmp_name" ] && local tmp_name=`cat ${dir}ipAddress|grep -w ${1}|awk '{print $3}'|grep -v "^$"|sort -u|head -n1`
 	[ -f "${dir}tmp_downlist" ] && [ -z "$tmp_name" ] && local tmp_name=`cat ${dir}tmp_downlist|grep -w ${1}|awk '{print $3}'|grep -v "^$"|sort -u|head -n1`
 	( ! echo "$tmp_name"|grep -q -w "unknown\|*" ) && [ ! -z "$tmp_name" ] && echo "$tmp_name" 2>/dev/null && return || unset tmp_name # 为unknown时重新读取
+	
+	# 优先检查设备别名设置
+	if [ -z "$tmp_name" ] || [ "$tmp_name" = "unknown" ]; then
+		[ ! -z "$device_aliases" ] && local tmp_name=`echo "$device_aliases"|grep -i -w ${2}|sed 's/.*-//'|grep -v "^$"|sort -u|head -n1`
+		( ! echo "$tmp_name"|grep -q -w "unknown\|*" ) && [ ! -z "$tmp_name" ] && echo "$tmp_name" 2>/dev/null && return || unset tmp_name
+	fi
+	
 	[ -f "/var/dhcp.leases" ] && [ -z "$tmp_name" ] && local tmp_name=`cat /var/dhcp.leases|grep -w ${1}|awk '{print $4}'|grep -v "^$"|sort -u|head -n1`
 	( ! echo "$tmp_name"|grep -q -w "unknown\|*" ) && [ ! -z "$tmp_name" ] && echo "$tmp_name" 2>/dev/null && return || unset tmp_name # 为unknown时重新读取
 	[ -z "$dhcp_config" ] && dhcp_config=`uci show dhcp|grep "ip\|mac\|name"`
