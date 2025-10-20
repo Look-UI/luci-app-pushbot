@@ -161,13 +161,13 @@ function diy_send(){
     fi
 
     # 清理 null 和多余空行
-    local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed '/^[[:space:]]*$/d')
+    local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed 's/^[[:space:]]*$//g' | sed '/^$/d')
 
     # 根据是否配置 media_id 决定消息类型
     if [ -n "${wechat_media_id:-}" ]; then
         # mpnews 模式（图文卡片） 
         # 恢复换行：在关键词前添加换行符
-        local formatted_clean_content=$(echo "$raw_content" | \
+        local formatted_clean_content=$(echo "$clean_content" | \
             sed 's/【系统运行状态】/\n【系统运行状态】/g' | \
             sed 's/【设备温度】/\n【设备温度】/g' | \
             sed 's/【WAN 口信息】/\n【WAN 口信息】/g' | \
@@ -183,11 +183,11 @@ function diy_send(){
             sed 's/- 在线/\n- 在线/g')
         
         # 将换行符替换为 <br> 用于 HTML 显示
-        local content_body=$(echo "$formatted_clean_content" | sed 's/\n/<br>/g')
+        local content_body=$(echo "$formatted_clean_content" | tr '\n' '|' | sed 's/|/<br>/g')
         content_body="<p>${content_body}</p>"
 
         # 摘要：截取前 500 个字符，避免过长，同时清理尾部空白
-        local digest_content=$(echo "$raw_content" | head -c 500 | sed 's/[[:space:]]*$//')
+        local digest_content=$(echo "$clean_content" | head -c 500 | sed 's/[[:space:]]*$//')
 
         jq -n \
             --arg touser "${wechat_touser}" \
@@ -216,7 +216,7 @@ function diy_send(){
             }' > "${tempjsonpath}"
     else
         # text 模式（纯文本）
-        local formatted_content=$(echo "$raw_content" | \
+        local formatted_content=$(echo "$clean_content" | \
             sed 's/【系统运行状态】/\n【系统运行状态】/g' | \
             sed 's/【设备温度】/\n【设备温度】/g' | \
             sed 's/【WAN 口信息】/\n【WAN 口信息】/g' | \
@@ -889,7 +889,7 @@ function rand_geturl(){
 				geterrdevicealiases
 				if [ "$?" -eq "0" ]; then
 					[ -f /usr/bin/pushbot/autoreboot_count ] && retry_count=`cat /usr/bin/pushbot/autoreboot_count` && rm -f /usr/bin/pushbot/autoreboot_count >/dev/null 2>&1
-					[ ! -z ${retry_count} ] && retry_count=0;retry_count=`expr $retry_count + 1`
+					[ -z "${retry_count}" ] && retry_count=0;retry_count=`expr $retry_count + 1`
 					if [ "$network_err_event" -eq "1" ] ;then
 						if [ "$retry_count" -lt "3" ] ;then
 							echo "$retry_count" > /usr/bin/pushbot/autoreboot_count
@@ -908,7 +908,7 @@ function rand_geturl(){
 							echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】正在尝试修复网络，当前第 2 次，关闭可能造成网络断开的软件" >> ${logfile}
 							[ `uci get koolproxy.@global[0].enabled 2>/dev/null` -eq "1" ] && [ `uci get koolproxy.@global[0].koolproxy_mode 2>/dev/null` -eq "1" ] && /etc/init.d/koolproxy stop >/dev/null 2>&1
 							[ `uci get adbyby.@adbyby[0].enable 2>/dev/null` -eq "1" ] && [ `uci get adbyby.@adbyby[0].wan_mode 2>/dev/null` -eq "0" ] && /etc/init.d/adbyby stop >/dev/null 2>&1
-							[ `uci get passwall.@global[0].enabled 2>/dev/null` -eq "1" ] && [ `uci get passwall.@global[0].proxy_mode 2>/dev/null|grep global` ] && /etc/init.d/koolproxy stop >/dev/null 2>&1
+							[ `uci get passwall.@global[0].enabled 2>/dev/null` -eq "1" ] && [ `uci get passwall.@global[0].proxy_mode 2>/dev/null|grep global` ] && /etc/init.d/passwall stop >/dev/null 2>&1
 							local shadowsocksr_enabled=`uci get shadowsocksr.@global[0].global_server 2>/dev/null|grep nil`
 							local shadowsocksr_run_mode=`uci get shadowsocksr.@global[0].run_mode 2>/dev/null|grep all`
 							[ -z "$shadowsocksr_enabled" ] && [ ! -z "$shadowsocksr_run_mode" ] && /etc/init.d/shadowsocksr stop >/dev/null 2>&1
@@ -1430,7 +1430,7 @@ function send(){
 
 	[ -z "$send_title" ] && local send_title="路由状态："
 	[ -z "$google_check_timeout" ] && local google_check_timeout="10"
-	[ ! -z "$1" ] && local send_title="发送测试：" && local send_content="${str_splitline}${str_title_start}内容1${str_title_end}${str_linefeed}${str_tab}设备1${str_linefeed}${str_tab}设备2${str_splitline}${str_title_start}内容2${str_title_end}${str_linefeed}${str_tab}设备3${str_linefeed}${str_tab}设备4"
+	[ ! -z "$1" ] && local send_title="发送测试：" && local send_content="内容1\n设备1\n设备2\n内容2\n设备3\n设备4"
 	[ -z "$1" ] && [ ! -z "$client_list" ] && [ "$client_list" -eq "1" ] && > ${dir}send_enable.lock && pushbot_first &
 
 	if [ -z "$1" ] && [ ! -z "$router_status" ] && [ "$router_status" -eq "1" ]; then
@@ -1499,7 +1499,6 @@ function send(){
 	fi
 
 	[ ! -z "$device_name" ] && local send_title="【$device_name】${send_title}"
-	[ -z "$send_content" ] && local send_content="\n\n 我遇到了一个难题\n\n定时发送选项错误，你没有选择需要发送的项目，该怎么办呢\n\n"
 	[ "$send_disturb" -eq "0" ] && diy_send "${send_title}" "${send_content}" "${jsonpath}" >/dev/null 2>&1
 	[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】定时推送失败，请检查网络或设置信息" >> ${logfile} || echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】${disturb_text}定时推送任务完成" >> ${logfile}
 	deltemp

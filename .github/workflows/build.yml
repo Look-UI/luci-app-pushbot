@@ -224,11 +224,27 @@ jobs:
   cleanup:
     runs-on: ubuntu-22.04
     needs: build # 确保在 build Job 成功后再执行
-    if: success() && github.ref == 'refs/heads/master' # 仅在 master 分支编译成功后清理
+    if: success() # 在编译成功后执行清理
     
     name: 清理旧 Release 和 Tag
     steps:
-      - name: 删除旧的 Release (仅保留最新的 2 个)
+      - name: 检查当前分支
+        run: |
+          echo "当前分支: ${{ github.ref }}"
+          echo "是否为master分支: ${{ github.ref == 'refs/heads/master' }}"
+          echo "是否为testing分支: ${{ github.ref == 'refs/heads/testing' }}"
+
+      - name: 删除旧的 Release (Master分支)
+        if: github.ref == 'refs/heads/master'
+        uses: dev-drprasad/delete-older-releases@v0.2.1
+        with:
+          keep_latest: 2
+          delete_tags: true # 同时删除对应的 Tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 删除旧的 Release (Testing分支)
+        if: github.ref == 'refs/heads/testing'
         uses: dev-drprasad/delete-older-releases@v0.2.1
         with:
           keep_latest: 2
