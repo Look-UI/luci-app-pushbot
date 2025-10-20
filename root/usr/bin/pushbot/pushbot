@@ -256,7 +256,7 @@ function diy_send(){
 			/usr/bin/jq -n \
 				--arg touser "${wechat_touser}" \
 				--arg agentid "${wechat_agentid}" \
-				--arg content "${1}\n${processed_content}" \
+				--arg content "${1}${processed_content}" \
 				'{
 					"touser": $touser,
 					"msgtype": "text",
