@@ -183,7 +183,7 @@ function diy_send(){
             sed 's/- 在线/\n- 在线/g')
         
         # 将换行符替换为 <br> 用于 HTML 显示
-        local content_body=$(echo "$formatted_clean_content" | tr '\n' '|' | sed 's/|/<br>/g')
+        local content_body=$(echo "$formatted_clean_content" | awk '{gsub(/\n/, "<br>"); print}')
         content_body="<p>${content_body}</p>"
 
         # 摘要：截取前 500 个字符，避免过长，同时清理尾部空白
@@ -231,7 +231,8 @@ function diy_send(){
             sed 's/- 总计流量/\n- 总计流量/g' | \
             sed 's/- 在线/\n- 在线/g')
         
-        local full_text="${title}\n${formatted_content}"
+        # 使用printf确保换行符被正确处理
+        local full_text=$(printf "%s\n%s" "${title}" "${formatted_content}")
 
         jq -n \
             --arg touser "${wechat_touser}" \
@@ -1430,7 +1431,7 @@ function send(){
 
 	[ -z "$send_title" ] && local send_title="路由状态："
 	[ -z "$google_check_timeout" ] && local google_check_timeout="10"
-	[ ! -z "$1" ] && local send_title="发送测试：" && local send_content="内容1\n设备1\n设备2\n内容2\n设备3\n设备4"
+	[ ! -z "$1" ] && local send_title="发送测试：" && local send_content="内容1 设备1 设备2 内容2 设备3 设备4"
 	[ -z "$1" ] && [ ! -z "$client_list" ] && [ "$client_list" -eq "1" ] && > ${dir}send_enable.lock && pushbot_first &
 
 	if [ -z "$1" ] && [ ! -z "$router_status" ] && [ "$router_status" -eq "1" ]; then
