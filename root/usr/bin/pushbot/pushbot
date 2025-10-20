@@ -146,95 +146,97 @@ function get_wechat_token(){
 	return 0
 }
 
-# 推送
+# 企业微信推送
 function diy_send(){
 	( ! echo "$lite_enable"|grep -q "content" ) && ( ! echo "$lite_enable"|grep -q "nowtime" ) && local nowtime=`date "+%Y-%m-%d %H:%M:%S"`
 	
-	# 如果是企业微信应用，先获取 access_token
 	if [ "${3}" = "/usr/bin/pushbot/api/ent_wechat_app.json" ]; then
-		# 获取 access_token
-		get_wechat_token
-		[ $? -ne 0 ] && return 1
+    get_wechat_token || return 1
 
-		local title="${1}"
-		local raw_content="${2}"
-		local nowtime=""
-		if ! echo "$lite_enable" | grep -q "nowtime"; then
-			nowtime="$(date '+%Y-%m-%d %H:%M:%S')"
-		fi
+    local title="${1}"
+    local raw_content="${2}"
+    local nowtime=""
+    if ! echo "$lite_enable" | grep -q "nowtime"; then
+        nowtime="$(date '+%Y-%m-%d %H:%M:%S')"
+    fi
 
-		# ========== 清理内容：移除 null 和多余空行 ==========
-		local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed '/^[[:space:]]*$/d')
+    # 清理 null 和多余空行
+    local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed '/^[[:space:]]*$/d')
 
-		# ========== 判断是否为结构化状态报告 ==========
-		local is_structured=0
-		case "$clean_content" in
-			*"【系统运行状态】"*|*"【设备温度】"*|*"【WAN 口信息】"*|*"平均负载："*|*"CPU占用："*|*"内存占用："*|*"【现有在线设备】"*)
-				is_structured=1
-				;;
-		esac
+    # 根据是否配置 media_id 决定消息类型
+    if [ -n "${wechat_media_id:-}" ]; then
+        # mpnews 模式（图文卡片） 
+        # content 支持 HTML，使用 <pre> 标签保留格式
+        local content_body="<h2>${title}</h2>"
+        [ -n "$nowtime" ] && content_body="${content_body}<p><small>${nowtime}</small></p>"
+        content_body="${content_body}<pre>${clean_content}</pre>"
+        
+        # digest 是纯文本摘要
+        local digest_content=$(echo "$clean_content" | tr '\n' ' ' | sed 's/  */ /g' | cut -c 1-100)
 
-		# ========== 构建消息 ==========
-		if [ "$is_structured" = "1" ]; then
-			# ========== Markdown 模式（结构化状态）==========
-			local md_content="${title}\n\n"
-			[ -n "$nowtime" ] && md_content="${md_content}${nowtime}\n\n"
-			md_content="${md_content}${clean_content}"
+        jq -n \
+            --arg touser "${wechat_touser}" \
+            --arg agentid "${wechat_agentid}" \
+            --arg title "${title}" \
+            --arg content "${content_body}" \
+            --arg digest "${digest_content}" \
+            --arg media_id "${wechat_media_id}" \
+            '{
+                "touser": $touser,
+                "msgtype": "mpnews",
+                "agentid": ($agentid | tonumber),
+                "safe": 0,
+                "mpnews": {
+                    "articles": [
+                        {
+                            "title": $title,
+                            "thumb_media_id": $media_id,
+                            "author": "OpenWrt PushBot",
+                            "content_source_url": "",
+                            "content": $content,
+                            "digest": $digest
+                        }
+                    ]
+                }
+            }' > "${tempjsonpath}"
+    else
+        # text 模式（纯文本）
+        local full_text="${title}\n"
+        [ -n "$nowtime" ] && full_text="${full_text}${nowtime}\n\n"
+        full_text="${full_text}${clean_content}"
 
-			/usr/bin/jq -n \
-				--arg touser "${wechat_touser}" \
-				--arg agentid "${wechat_agentid}" \
-				--arg content "${md_content}" \
-				'{
-					"touser": $touser,
-					"msgtype": "markdown",
-					"agentid": ($agentid | tonumber),
-					"safe": 0,
-					"markdown": {
-						"content": $content
-					}
-				}' > "${tempjsonpath}"
+        jq -n \
+            --arg touser "${wechat_touser}" \
+            --arg agentid "${wechat_agentid}" \
+            --arg content "${full_text}" \
+            '{
+                "touser": $touser,
+                "msgtype": "text",
+                "agentid": ($agentid | tonumber),
+                "safe": 0,
+                "text": { "content": $content }
+            }' > "${tempjsonpath}"
+    fi
 
-		else
-			# ========== Text 模式（普通通知）==========
-			local plain_text="${title}"
-			[ -n "$nowtime" ] && plain_text="${plain_text} (${nowtime})"
-			plain_text="${plain_text}: $(echo "$clean_content" | tr '\n' ' ' | sed 's/  */ /g; s/ $//')"
+    # 发送请求
+    if [ ! -f "${tempjsonpath}" ] || [ ! -s "${tempjsonpath}" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') 【error】企业微信：JSON生成失败" >> "${logfile}"
+        return 1
+    fi
 
-			/usr/bin/jq -n \
-				--arg touser "${wechat_touser}" \
-				--arg agentid "${wechat_agentid}" \
-				--arg content "${plain_text}" \
-				'{
-					"touser": $touser,
-					"msgtype": "text",
-					"agentid": ($agentid | tonumber),
-					"safe": 0,
-					"text": {
-						"content": $content
-					}
-				}' > "${tempjsonpath}"
-		fi
+    local diyurl=$(/usr/bin/jq -r .url "${3}")
+    diyurl=$(eval echo "${diyurl}")
+    local content_type=$(/usr/bin/jq -r '.content_type' "${3}")
+    local response=$(curl -s -X POST -H "${content_type}" -d "@${tempjsonpath}" "${diyurl}")
 
-		# ========== 发送请求 ==========
-		if [ ! -f "${tempjsonpath}" ] || [ ! -s "${tempjsonpath}" ]; then
-			echo "$(date '+%Y-%m-%d %H:%M:%S') 【error】企业微信：JSON生成失败" >> "${logfile}"
-			return 1
-		fi
-
-		local diyurl=$(/usr/bin/jq -r .url "${3}")
-		diyurl=$(eval echo "${diyurl}")
-		local content_type=$(/usr/bin/jq -r '.content_type' "${3}")
-		local response=$(curl -s -X POST -H "${content_type}" -d "@${tempjsonpath}" "${diyurl}")
-
-		if echo "$response" | grep -q '"errcode":0'; then
-			echo "$(date '+%Y-%m-%d %H:%M:%S') 【success】企业微信推送成功" >> "${logfile}"
-			return 0
-		else
-			echo "$(date '+%Y-%m-%d %H:%M:%S') 【error】企业微信推送失败：$response" >> "${logfile}"
-			return 1
-		fi
-	fi
+    if echo "$response" | grep -q '"errcode":0'; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') 【success】企业微信推送成功" >> "${logfile}"
+        return 0
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') 【error】企业微信推送失败：$response" >> "${logfile}"
+        return 1
+    fi
+fi
 	
 	local diyurl=`/usr/bin/jq -r .url ${3}` && local diyurl=`eval echo ${diyurl}`
 	local type=`/usr/bin/jq -r '.type' ${3}` && local type=`eval echo ${type}`
