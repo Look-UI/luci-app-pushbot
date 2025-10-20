@@ -166,13 +166,16 @@ function diy_send(){
     # 根据是否配置 media_id 决定消息类型
     if [ -n "${wechat_media_id:-}" ]; then
         # mpnews 模式（图文卡片） 
-        # content 支持 HTML，使用 <pre> 标签保留格式
-        local content_body="<h2>${title}</h2>"
-        [ -n "$nowtime" ] && content_body="${content_body}<p><small>${nowtime}</small></p>"
-        content_body="${content_body}<pre>${clean_content}</pre>"
+        # 修复：将换行替换为 <br>，并移除正文内的重复标题
+        local formatted_clean_content=$(echo "$clean_content" | sed ':a;N;$!ba;s/\n/<br>/g')
+
+        # 构建正文（仅时间戳 + 内容）
+        local content_body=""
+        [ -n "$nowtime" ] && content_body="<p><small>${nowtime}</small></p>"
+        content_body="${content_body}<p>${formatted_clean_content}</p>"
         
-        # digest 是纯文本摘要
-        local digest_content=$(echo "$clean_content" | tr '\n' ' ' | sed 's/  */ /g' | cut -c 1-100)
+        # 摘要：截取前 500 个字符，避免过长，同时清理尾部空白
+        local digest_content=$(echo "$clean_content" | head -c 500 | sed 's/[[:space:]]*$//')
 
         jq -n \
             --arg touser "${wechat_touser}" \
