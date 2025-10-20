@@ -221,3 +221,17 @@ jobs:
           draft: false
           prerelease: true
 
+      cleanup:
+  runs-on: ubuntu-22.04
+  needs: build # 确保在 build Job 成功后再执行
+  if: success() && github.ref == 'refs/heads/master' # 仅在 master 分支编译成功后清理
+  
+  name: 清理旧 Release 和 Tag
+  steps:
+    - name: 删除旧的 Release (仅保留最新的 2 个)
+      uses: dev-drprasad/delete-older-releases@v0.2.1
+      with:
+        keep_latest: 2
+        delete_tags: true # 同时删除对应的 Tag
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
