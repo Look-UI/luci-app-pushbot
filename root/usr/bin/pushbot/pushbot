@@ -86,7 +86,7 @@ function pushbot_init(){
 	enable_detection
 	if [ -f "/usr/bin/pushbot/errlog" ]; then
 		cat /usr/bin/pushbot/errlog > ${logfile}
-		echo "`date "+%Y-%m-%d %H:%M:%S"` 【信息】载入上次重启前日志" >> ${logfile}
+		echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】载入上次重启前日志" >> ${logfile}
 		echo "--------------------------------------------------------" >> ${logfile}
 	fi
 	deltemp
@@ -94,11 +94,11 @@ function pushbot_init(){
 	add_ip_black
 	
 	rm -f ${dir}fd1 ${dir}sheep_usage ${dir}old_sheep_usage ${dir}client_usage_aliases ${dir}old_client_usage_aliases /usr/bin/pushbot/errlog >/dev/null 2>&1
-	[ ! -f "/usr/sbin/wrtbwmon" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】未安装 wrtbwmon ，流量统计不可用" >> ${logfile}
-	[ -z "$ip_version" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】无法获取依赖项 iputils-arping 版本号，请确认插件是否正常运行" >> ${logfile}
-	[ -z "$cu_version" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】无法获取依赖项 curl 版本号，请确认插件是否正常运行" >> ${logfile}
-	[ -z "${dd_webhook}${pp_token}${we_webhook}${fs_webhook}${bark_token}${pushdeer_key}${wechat_corpid}" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】请填写正确的Token/Webhook " >> ${logfile} && return 1
-	local interfacelist=`getinterfacelist` && [ -z "$interfacelist" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】无法正确获取接口信息，请确认插件是否正常运行" >> ${logfile}
+	[ ! -f "/usr/sbin/wrtbwmon" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【warning】未安装 wrtbwmon ，流量统计不可用" >> ${logfile}
+	[ -z "$ip_version" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】无法获取依赖项 iputils-arping 版本号，请确认插件是否正常运行" >> ${logfile}
+	[ -z "$cu_version" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】无法获取依赖项 curl 版本号，请确认插件是否正常运行" >> ${logfile}
+	[ -z "${dd_webhook}${pp_token}${we_webhook}${fs_webhook}${bark_token}${pushdeer_key}${wechat_corpid}" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】请填写正确的Token/Webhook " >> ${logfile} && return 1
+	local interfacelist=`getinterfacelist` && [ -z "$interfacelist" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】无法正确获取接口信息，请确认插件是否正常运行" >> ${logfile}
 	return 0
 }
 
@@ -121,21 +121,21 @@ function get_wechat_token(){
 	local response=`curl -s -m 10 "${token_url}"`
 	
 	if [ -z "$response" ]; then
-		echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】获取企业微信 access_token 失败：网络请求失败" >> ${logfile}
+		echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】获取企业微信 access_token 失败：网络请求失败" >> ${logfile}
 		return 1
 	fi
 	
 	local errcode=`echo "$response" | /usr/bin/jq -r '.errcode'`
 	if [ "$errcode" != "0" ]; then
 		local errmsg=`echo "$response" | /usr/bin/jq -r '.errmsg'`
-		echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】获取企业微信 access_token 失败：$errmsg (errcode: $errcode)" >> ${logfile}
+		echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】获取企业微信 access_token 失败：$errmsg (errcode: $errcode)" >> ${logfile}
 		return 1
 	fi
 	
 	wechat_access_token=`echo "$response" | /usr/bin/jq -r '.access_token'`
 	
 	if [ -z "$wechat_access_token" ] || [ "$wechat_access_token" = "null" ]; then
-		echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】获取企业微信 access_token 失败：返回值为空" >> ${logfile}
+		echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】获取企业微信 access_token 失败：返回值为空" >> ${logfile}
 		return 1
 	fi
 	
@@ -270,7 +270,7 @@ function diy_send(){
 		
 		# 检查JSON文件是否生成成功
 		if [ ! -f "${tempjsonpath}" ] || [ ! -s "${tempjsonpath}" ]; then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：JSON文件生成失败" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】企业微信应用：JSON文件生成失败" >> ${logfile}
 			return 1
 		fi
 		
@@ -286,27 +286,27 @@ function diy_send(){
 		else
 			local send_errmsg=`echo "$response" | /usr/bin/jq -r '.errmsg' 2>/dev/null`
 			if [ -z "$send_errcode" ] || [ "$send_errcode" = "null" ]; then
-				echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：API响应解析失败，原始响应: $response" >> ${logfile}
+				echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】企业微信应用：API响应解析失败，原始响应: $response" >> ${logfile}
 				return 1
 			fi
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】企业微信应用：消息发送失败 - $send_errmsg (错误码: $send_errcode)" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】企业微信应用：消息发送失败 - $send_errmsg (错误码: $send_errcode)" >> ${logfile}
 			
 			# 提供常见错误的解决建议
 			case "$send_errcode" in
 				40003)
-					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 40003 表示用户ID(ToUser)不正确" >> ${logfile}
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】错误码 40003 表示用户ID(ToUser)不正确" >> ${logfile}
 					;;
 				82001)
-					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 82001 表示应用ID(AgentId)不正确" >> ${logfile}
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】错误码 82001 表示应用ID(AgentId)不正确" >> ${logfile}
 					;;
 				60011)
-					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 60011 表示用户不存在" >> ${logfile}
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】错误码 60011 表示用户不存在" >> ${logfile}
 					;;
 				60020)
-					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 60020 表示应用可见范围不包含该用户" >> ${logfile}
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】错误码 60020 表示应用可见范围不包含该用户" >> ${logfile}
 					;;
 				40007)
-					echo "`date "+%Y-%m-%d %H:%M:%S"` 【提示】错误码 40007 表示图片ID(Media ID)无效，请检查配置" >> ${logfile}
+					echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】错误码 40007 表示图片ID(Media ID)无效，请检查配置" >> ${logfile}
 					;;
 			esac
 			return 1
@@ -318,10 +318,10 @@ function diy_send(){
 	local data=`/usr/bin/jq -r '.data' ${3}` && local data=`eval echo ${data}`
 	local content_type=`/usr/bin/jq -r '.content_type' ${3}`
 	/usr/bin/jq ".type + $type" ${jsonpath} > ${tempjsonpath}
-	/usr/bin/jq -r '.[]' ${tempjsonpath}|grep -w "null" && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】参数值错误，请检查设置项  `/usr/bin/jq -r '.' ${tempjsonpath}|grep "null"`" >> ${logfile} && return 1
+	/usr/bin/jq -r '.[]' ${tempjsonpath}|grep -w "null" && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】参数值错误，请检查设置项  `/usr/bin/jq -r '.' ${tempjsonpath}|grep "null"`" >> ${logfile} && return 1
 	[ -f ${tempjsonpath} ] && local logrow=$(grep -c "" ${tempjsonpath}) || local logrow="0"
-	[ $logrow -eq "0" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】json 文件生成失败，请检查文件格式" >> ${logfile} && return 1
-	/usr/bin/jq -r '.[]' ${tempjsonpath}|grep "null" && echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】参数变量生成失败，请检查设置项 `/usr/bin/jq -r '.' ${tempjsonpath}|grep "null"`" >> ${logfile}
+	[ $logrow -eq "0" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】json 文件生成失败，请检查文件格式" >> ${logfile} && return 1
+	/usr/bin/jq -r '.[]' ${tempjsonpath}|grep "null" && echo "`date "+%Y-%m-%d %H:%M:%S"` 【warning】参数变量生成失败，请检查设置项 `/usr/bin/jq -r '.' ${tempjsonpath}|grep "null"`" >> ${logfile}
 	
 	curl -X POST -H "$content_type" -d "${data}" "${diyurl}"
 }
@@ -333,7 +333,7 @@ function deltemp(){
 	rm -f ${dir}title ${dir}content ${dir}tmp_downlist ${dir}send_enable.lock ${tempjsonpath} >/dev/null 2>&1
 	LockFile unlock
 	[ -f ${logfile} ] && local logrow=$(grep -c "" ${logfile}) || local logrow="0"
-	[ $logrow -gt 500 ] && sed -i '1,100d' ${logfile} && echo "`date "+%Y-%m-%d %H:%M:%S"`  【清理】日志超出上限，删除前 100 条" >> ${logfile}
+	[ $logrow -gt 500 ] && sed -i '1,100d' ${logfile} && echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】日志超出上限，删除前 100 条" >> ${logfile}
 }
 
 # 检测程序开关
@@ -774,7 +774,7 @@ function pushbot_disturb(){
 		disturb_text=`/usr/bin/jq -r '._api' ${jsonpath}`
 		return 0
 	else
-		[ -z "$sheep_starttime" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【免打扰】夜深了，该休息了" >> ${logfile} && sheep_starttime=`date +%s`
+		[ -z "$sheep_starttime" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】夜深了，该休息了" >> ${logfile} && sheep_starttime=`date +%s`
 		if [ "$pushbot_sheep" -eq "1" ] ;then
 			while [ `date +%H` -lt "$endtime" ]; do
 				enable_detection
@@ -882,11 +882,11 @@ function unattended(){
 	if [ ! -z "$system_time_event" ]; then
 		local interfaceuptime=`getinterfaceuptime`
 		if [ ! -z "$autoreboot_time" ] && [ `cat /proc/uptime|awk -F. '{run_hour=$1/3600;printf("%d",run_hour)}' 2>/dev/null || echo "0"` -ge "$autoreboot_time" ] && [ "$system_time_event" -eq "1" ]; then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【无人值守任务】重启路由器咯" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】重启路由器咯" >> ${logfile}
 			cat ${logfile} > /usr/bin/pushbot/errlog
 			sleep 2 && reboot && exit
 		elif [ ! -z "$network_restart_time" ] && [ ! -z "$interfaceuptime" ] && [ `echo "$interfaceuptime"|awk -F. '{run_hour=$1/3600;printf("%d",run_hour)}' 2>/dev/null || echo "0"` -ge "$network_restart_time" ] && [ "$system_time_event" -eq "2" ]; then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【无人值守任务】重新拨号咯" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】重新拨号咯" >> ${logfile}
 			ifup wan >/dev/null 2>&1
 			sleep 60
 		fi
@@ -900,7 +900,7 @@ function unattended(){
 		local wanIP=`getip wanipv4`
 		local hostIP=`getip hostipv4`
 		if [ ! -z "$wanIP" ] && [ ! -z "$hostIP" ] && ( ! echo "$wanIP"|grep -q -w ${hostIP} );then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【无人值守任务】重拨尝试获取公网 ip，当前第 $public_ip_count 次 " >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】重拨尝试获取公网 ip，当前第 $public_ip_count 次 " >> ${logfile}
 			ifup wan >/dev/null 2>&1
 			sleep 60
 			local wanIP=`getip wanipv4` && local hostIP=`getip hostipv4`
@@ -925,10 +925,10 @@ function rand_geturl(){
 	while [ -z "$check" ] || [ "$check" -ne "200" ]; do
 		local check=`getcheck`
 		if [ ! -z "$check" ] && [ "$check" -eq "200" ]; then
-			[ ! -z "$network_enable" ] && [ "$network_enable" -eq "404" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【网络状态】网络恢复正常.." >> ${logfile}
+			[ ! -z "$network_enable" ] && [ "$network_enable" -eq "404" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】网络恢复正常.." >> ${logfile}
 			local network_enable="200"
 		else
-			[ -z "$network_enable" ] || [ "$network_enable" -eq "200" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】当前网络不通！停止检测！ " >> ${logfile}
+			[ -z "$network_enable" ] || [ "$network_enable" -eq "200" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】当前网络不通！停止检测！ " >> ${logfile}
 			local network_enable="404"
 			[ -z "$network_err_time" ] && network_err_time=`date +%s`
 			if [ ! -z "$network_err_event" ] && [ "$((`date +%s`-$network_err_time))" -ge "600" ]; then
@@ -940,19 +940,19 @@ function rand_geturl(){
 					if [ "$network_err_event" -eq "1" ] ;then
 						if [ "$retry_count" -lt "3" ] ;then
 							echo "$retry_count" > /usr/bin/pushbot/autoreboot_count
-							echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】正在尝试重启路由，当前第 $retry_count 次 " >> ${logfile}
+							echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】正在尝试重启路由，当前第 $retry_count 次 " >> ${logfile}
 							cat ${logfile} > /usr/bin/pushbot/errlog
 							sleep 2 && reboot && exit
 						fi
-						[ "$retry_count" -eq "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】已经重启路由2次，修复失败，请主人自行修复" >> ${logfile}
+						[ "$retry_count" -eq "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】已经重启路由2次，修复失败，请主人自行修复" >> ${logfile}
 					elif [ "$network_err_event" -eq "2" ] ;then
-						[ "$retry_count" -lt "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】正在尝试重启网络，当前第 $retry_count 次 " >> ${logfile} && ifup wan >/dev/null 2>&1
-						[ "$retry_count" -eq "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】已经重启网络2次，修复失败，请主人自行修复 " >> ${logfile}
+						[ "$retry_count" -lt "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】正在尝试重启网络，当前第 $retry_count 次 " >> ${logfile} && ifup wan >/dev/null 2>&1
+						[ "$retry_count" -eq "3" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】已经重启网络2次，修复失败，请主人自行修复 " >> ${logfile}
 					elif [ "$network_err_event" -eq "3" ] ;then
 						if [ "$retry_count" -eq "1" ] ;then
-							echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】正在尝试修复网络，当前第 1 次，重启网络服务中 " >> ${logfile} && network_restart
+							echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】正在尝试修复网络，当前第 1 次，重启网络服务中 " >> ${logfile} && network_restart
 						elif [ "$retry_count" -eq "2" ] ;then
-							echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】正在尝试修复网络，当前第 2 次，关闭可能造成网络断开的软件" >> ${logfile}
+							echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】正在尝试修复网络，当前第 2 次，关闭可能造成网络断开的软件" >> ${logfile}
 							[ `uci get koolproxy.@global[0].enabled 2>/dev/null` -eq "1" ] && [ `uci get koolproxy.@global[0].koolproxy_mode 2>/dev/null` -eq "1" ] && /etc/init.d/koolproxy stop >/dev/null 2>&1
 							[ `uci get adbyby.@adbyby[0].enable 2>/dev/null` -eq "1" ] && [ `uci get adbyby.@adbyby[0].wan_mode 2>/dev/null` -eq "0" ] && /etc/init.d/adbyby stop >/dev/null 2>&1
 							[ `uci get passwall.@global[0].enabled 2>/dev/null` -eq "1" ] && [ `uci get passwall.@global[0].proxy_mode 2>/dev/null|grep global` ] && /etc/init.d/koolproxy stop >/dev/null 2>&1
@@ -961,7 +961,7 @@ function rand_geturl(){
 							[ -z "$shadowsocksr_enabled" ] && [ ! -z "$shadowsocksr_run_mode" ] && /etc/init.d/shadowsocksr stop >/dev/null 2>&1
 							sleep 60 && network_restart
 						elif [ "$retry_count" -eq "3" ] ;then
-							echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】正在尝试修复网络，当前第 3 次，备份设置项，并修改相关设置" >> ${logfile}
+							echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】正在尝试修复网络，当前第 3 次，备份设置项，并修改相关设置" >> ${logfile}
 							mkdir -p /usr/bin/pushbot/configbak
 							cp -p -f /etc/config/network /usr/bin/pushbot/configbak/network
 							cp -p -f /etc/config/dhcp /usr/bin/pushbot/configbak/dhcp
@@ -988,7 +988,7 @@ function rand_geturl(){
 							sleep 2 && reboot && exit
 						elif [ "$retry_count" -eq "5" ] ;then
 							echo "$retry_count" > /usr/bin/pushbot/autoreboot_count
-							echo "`date "+%Y-%m-%d %H:%M:%S"` 【严重】修复失败，还原设置中，请自行检查网络设置" >> ${logfile}
+							echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】修复失败，还原设置中，请自行检查网络设置" >> ${logfile}
 							cp -p -f /usr/bin/pushbot/configbak/network /etc/config/network
 							cp -p -f /usr/bin/pushbot/configbak/dhcp /etc/config/dhcp
 							cp -p -f /usr/bin/pushbot/configbak/firewall /etc/config/firewall
@@ -1261,10 +1261,10 @@ function cpu_load(){
 	if [ ! -z "$temperature_enable" ] && [ "$temperature_enable" -eq "1" ] && [ ! -z "$temperature" ]; then
 		[ -z "$temperature_time" ] && temperature_time=`date +%s`
 		local cpu_wendu=`soc_temp`;
-		[ -z "$cpu_wendu" ] && echo "`date "+%Y-%m-%d %H:%M:%S"`  【警告】无法读取设备温度，请检查命令" >> ${logfile}
+		[ -z "$cpu_wendu" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【warning】无法读取设备温度，请检查命令" >> ${logfile}
 
 		if [ `expr $cpu_wendu \> $temperature` -eq "1" ]; then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【警报】CPU 温度过高: ${cpu_wendu}℃" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】CPU 温度过高: ${cpu_wendu}℃" >> ${logfile}
 		else
 			temperature_time=`date +%s`
 		fi
@@ -1282,10 +1282,10 @@ function cpu_load(){
 	if [ ! -z "$cpuload_enable" ] && [ "$cpuload_enable" -eq "1" ] && [ ! -z "$cpuload" ]; then
 		[ -z "$cpuload_time" ] && cpuload_time=`date +%s`
 		local cpu_fuzai=`cat /proc/loadavg|awk '{print $1}'` 2>/dev/null
-		[ -z "$cpu_fuzai" ] && echo "`date "+%Y-%m-%d %H:%M:%S"`  【警告】无法读取设备负载，请检查命令" >> ${logfile}
+		[ -z "$cpu_fuzai" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【warning】无法读取设备负载，请检查命令" >> ${logfile}
 
 		if [ `expr $cpu_fuzai \> $cpuload` -eq "1" ]; then
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【警报】CPU 负载过高: ${cpu_fuzai}" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】CPU 负载过高: ${cpu_fuzai}" >> ${logfile}
 			cputop log
 		else
 			cpuload_time=`date +%s`
@@ -1319,7 +1319,7 @@ function cputop(){
 		[ -z "$1" ] && content="${content}${str_linefeed}${str_tab}${temp_top}"
 	done
 		unset i
-	[ ! -z "$1" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【警报】CPU 占用前三: ${logtop}" >> ${logfile}
+	[ ! -z "$1" ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】CPU 占用前三: ${logtop}" >> ${logfile}
 }
 
 # 生成日志监控文件，避免后台影响 wait 语句
@@ -1413,7 +1413,7 @@ function login_send(){
 				fi
 			fi
 			sed -i "/^${login_ip}$/d" ${dir}web_failed
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】设备 ${login_ip} 通过 Web 频繁尝试登录" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】设备 ${login_ip} 通过 Web 频繁尝试登录" >> ${logfile}
 			add_ip_black $login_ip
 		fi
 	done
@@ -1438,7 +1438,7 @@ function login_send(){
 				fi
 			fi
 			sed -i "/^${login_ip}$/d" ${dir}ssh_failed
-			echo "`date "+%Y-%m-%d %H:%M:%S"` 【警告】设备 ${login_ip} 通过 SSH 频繁尝试登录" >> ${logfile}
+			echo "`date "+%Y-%m-%d %H:%M:%S"` 【alert】设备 ${login_ip} 通过 SSH 频繁尝试登录" >> ${logfile}
 			add_ip_black $login_ip
 		fi
 	done
@@ -1471,7 +1471,7 @@ function add_ip_black(){
 
 # 发送定时数据
 function send(){
-	echo "`date "+%Y-%m-%d %H:%M:%S"` 【定时数据】创建定时任务" >> ${logfile}
+	echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】创建定时任务" >> ${logfile}
 	pushbot_disturb;local send_disturb=$?
 	get_config "send_title" "router_status" "router_temp" "router_wan" "client_list" "google_check_timeout"
 
@@ -1548,7 +1548,7 @@ function send(){
 	[ ! -z "$device_name" ] && local send_title="【$device_name】${send_title}"
 	[ -z "$send_content" ] && local send_content="${str_splitline}${str_title_start} 我遇到了一个难题${str_title_end}${str_linefeed}${str_tab}定时发送选项错误，你没有选择需要发送的项目，该怎么办呢${str_splitline}"
 	[ "$send_disturb" -eq "0" ] && diy_send "${send_title}" "${send_content}" "${jsonpath}" >/dev/null 2>&1
-	[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】定时推送失败，请检查网络或设置信息" >> ${logfile} || echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】${disturb_text}定时推送任务完成" >> ${logfile}
+	[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】定时推送失败，请检查网络或设置信息" >> ${logfile} || echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】${disturb_text}定时推送任务完成" >> ${logfile}
 	deltemp
 }
 
@@ -1577,10 +1577,10 @@ if [ "$1" ] ;then
 fi
 
 # 载入在线设备
-pushbot_init;[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】读取设置出错，请检查设置项 " >> ${logfile} && exit
-echo "`date "+%Y-%m-%d %H:%M:%S"` 【初始化】载入在线设备" >> ${logfile}
+pushbot_init;[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】读取设置出错，请检查设置项 " >> ${logfile} && exit
+echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】载入在线设备" >> ${logfile}
 > ${dir}send_enable.lock && pushbot_first && deltemp
-echo "`date "+%Y-%m-%d %H:%M:%S"` 【初始化】初始化完成" >> ${logfile}
+echo "`date "+%Y-%m-%d %H:%M:%S"` 【info】初始化完成" >> ${logfile}
 
 # 循环
 while [ "$pushbot_enable" -eq "1" ]; do
@@ -1634,7 +1634,7 @@ while [ "$pushbot_enable" -eq "1" ]; do
 		[ ! -z "$device_name" ] && title="【$device_name】$title"
 		( echo "$lite_enable"|grep -q "content" ) && content="$title"
 		[ "$disturb" -eq "0" ] && diy_send "${title}" "${content}" "${jsonpath}" >/dev/null 2>&1
-		[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【错误】推送失败，请检查网络或设置信息 " >> ${logfile}
+		[ $? -eq 1 ] && echo "`date "+%Y-%m-%d %H:%M:%S"` 【error】推送失败，请检查网络或设置信息 " >> ${logfile}
 	fi
 	
 	while [ -f "${dir}send_enable.lock" ]; do
