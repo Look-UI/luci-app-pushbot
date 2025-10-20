@@ -2,15 +2,5 @@
     "_api": "企业微信应用推送",
     "url": "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${wechat_access_token}",
     "data": "@${tempjsonpath}",
-    "content_type": "Content-Type: application/json; charset=utf-8",
-    "type": {
-        "touser": "\"${wechat_touser}\"",
-        "msgtype": "\"text\"",
-        "agentid": "${wechat_agentid}",
-        "text": {
-            "content": "\"${1}${str_linefeed}${str_linefeed}${nowtime}${str_linefeed}${2}\""
-        },
-        "safe": 0
-    }
+    "content_type": "Content-Type: application/json; charset=utf-8"
 }
-
