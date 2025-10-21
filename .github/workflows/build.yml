@@ -44,6 +44,21 @@ jobs:
           tar xf *.tar.xz && rm *.tar.xz
           mv openwrt-sdk-* openwrt
 
+          
+      - name: 仅更新 luci feed（带重试）
+        working-directory: /workdir/openwrt
+        run: |
+          echo "src-git luci https://github.com/openwrt/luci.git;openwrt-22.03" > feeds.conf
+          retries=3
+          for i in $(seq 1 $retries); do
+            if ./scripts/feeds update luci; then
+              ./scripts/feeds install -a -p luci
+              break
+            else
+              if [ $i -eq $retries ]; then exit 1; fi
+              sleep 10
+            fi
+          done
 
       - name: 加载插件代码
         working-directory: /workdir/openwrt
