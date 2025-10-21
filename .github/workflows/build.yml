@@ -44,15 +44,6 @@ jobs:
           tar xf *.tar.xz && rm *.tar.xz
           mv openwrt-sdk-* openwrt
 
-      - name: 更新 feeds
-        working-directory: /workdir/openwrt
-        run: |
-          ./scripts/feeds update -a
-
-      - name: 安装 feeds
-        working-directory: /workdir/openwrt
-        run: |
-          ./scripts/feeds install -a
 
       - name: 加载插件代码
         working-directory: /workdir/openwrt
