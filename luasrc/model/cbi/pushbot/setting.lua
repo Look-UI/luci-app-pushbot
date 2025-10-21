@@ -41,13 +41,14 @@ a.optional = true
 a=s:taboption("basic", ListValue,"jsonpath",translate("推送模式"))
 a.default="/usr/bin/pushbot/api/dingding.json"
 a.rmempty = true
-a:value("/usr/bin/pushbot/api/dingding.json",translate("钉钉"))
-a:value("/usr/bin/pushbot/api/ent_wechat.json",translate("企业微信机器人"))
+-- 调整排序：优先企业微信应用，其次企业微信机器人与常用平台
 a:value("/usr/bin/pushbot/api/ent_wechat_app.json",translate("企业微信应用"))
+a:value("/usr/bin/pushbot/api/ent_wechat.json",translate("企业微信机器人"))
+a:value("/usr/bin/pushbot/api/dingding.json",translate("钉钉"))
 a:value("/usr/bin/pushbot/api/feishu.json",translate("飞书"))
-a:value("/usr/bin/pushbot/api/bark.json",translate("Bark"))
 a:value("/usr/bin/pushbot/api/pushplus.json",translate("PushPlus"))
 a:value("/usr/bin/pushbot/api/pushdeer.json",translate("PushDeer"))
+a:value("/usr/bin/pushbot/api/bark.json",translate("Bark"))
 a:value("/usr/bin/pushbot/api/diy.json",translate("自定义推送"))
 
 a=s:taboption("basic", Value,"dd_webhook",translate('Webhook'), translate("钉钉机器人 Webhook").."，只输入access_token=后面的即可<br>调用代码获取<a href='https://developers.dingtalk.com/document/robots/custom-robot-access' target='_blank'>点击这里</a><br><br>")
