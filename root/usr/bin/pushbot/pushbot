@@ -203,8 +203,8 @@ function diy_send(){
             sed 's/总计流量：/\n- 总计流量：/g' | \
             sed 's/  在线/\n- 在线/g')
         
-        # 将换行符替换为 <br> 用于 HTML 显示
-        local content_body=$(echo "$formatted_clean_content" | awk '{gsub(/\n/, "<br>"); print}')
+        # 将所有换行安全地替换为 <br/>（包括记录分隔换行）
+        local content_body=$(printf "%s" "$formatted_clean_content" | sed ':a;N;$!ba;s/\r//g; s/\n/<br\/>/g')
         content_body="<p>${content_body}</p>"
 
         # 摘要：截取前 500 个字符，避免过长，同时清理尾部空白
@@ -238,18 +238,18 @@ function diy_send(){
     else
         # text 模式（纯文本）
         local formatted_content=$(echo "$clean_content" | \
-            # 处理标题部分 - 标题前双换行，标题后换行
-            sed 's/【系统运行状态】/\n\n【系统运行状态】\n/g' | \
-            sed 's/【设备温度】/\n\n【设备温度】\n/g' | \
-            sed 's/【WAN 口信息】/\n\n【WAN 口信息】\n/g' | \
-            sed 's/【现有在线设备】/\n\n【现有在线设备】/g' | \
-            sed 's/设备断开连接/\n\n【设备断开连接】\n/g' | \
-            sed 's/新设备连接/\n\n【新设备连接】\n/g' | \
+            # 处理标题部分 - 标题前单空行，标题后单空行
+            sed 's/【系统运行状态】[[:space:]]*/\n【系统运行状态】\n/g' | \
+            sed 's/【设备温度】[[:space:]]*/\n【设备温度】\n/g' | \
+            sed 's/【WAN 口信息】[[:space:]]*/\n【WAN 口信息】\n/g' | \
+            sed 's/【现有在线设备】[[:space:]]*/\n【现有在线设备】/g' | \
+            sed 's/设备断开连接/\n【设备断开连接】\n/g' | \
+            sed 's/新设备连接/\n【新设备连接】\n/g' | \
             # 处理没有标题的情况（未加方括号的标题）
-            sed 's/ 系统运行状态/\n\n【系统运行状态】/g' | \
-            sed 's/ 设备温度/\n\n【设备温度】/g' | \
-            sed 's/ WAN 口信息/\n\n【WAN 口信息】/g' | \
-            sed 's/ 现有在线设备/\n\n【现有在线设备】/g' | \
+            sed 's/ 系统运行状态/\n【系统运行状态】\n/g' | \
+            sed 's/ 设备温度/\n【设备温度】\n/g' | \
+            sed 's/ WAN 口信息/\n【WAN 口信息】\n/g' | \
+            sed 's/ 现有在线设备/\n【现有在线设备】/g' | \
             # 处理正文项目符号（行首可有或无现有的 • ）
             sed 's/^[[:space:]]*•[[:space:]]*平均负载：/\n• 平均负载：/g' | \
             sed 's/^[[:space:]]*•[[:space:]]*CPU占用：/\n• CPU占用：/g' | \
@@ -266,8 +266,7 @@ function diy_send(){
             # 处理在线设备列表格式（兼容“，具体如下”与带方括号标题）
             sed 's/现有在线设备 \([0-9]*\) 台[^\n]*/\n\n【现有在线设备】运行中： \1 台/g' | \
             sed 's/【现有在线设备】[[:space:]]*\([0-9]*\)[[:space:]]*台/\n\n【现有在线设备】运行中： \1 台/g' | \
-            # 将连续的设备条目拆分为多行：为每个 IPv4 开头插入项目符号
-            sed 's/\([0-9]\{1,3\}\(\.[0-9]\{1,3\}\)\{3\}\)/\n• \1/g' | \
+            #（移除全局 IPv4 前置项目符号规则，避免 WAN 段落被拆为两行）
             # 在“bytes”或“ M/KB/GB”后紧跟设备名时换行
             sed 's/\(bytes\|[0-9]\+\.?[0-9]*[[:space:]]*[KMG]\?B\?\)\([^\n ]\)/\1\n\2/g' | \
             # 设备详情：总计流量与在线信息各起一行，并使用短横线
