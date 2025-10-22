@@ -162,14 +162,20 @@ function diy_send(){
         nowtime="$(date '+%Y-%m-%d %H:%M:%S')"
     fi
 
-    # 清理 null 和多余空行
-    local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed 's/^[[:space:]]*$//g' | sed '/^$/d')
-
     # 判断是否为定时推送（已经格式化好的内容），通过检查标题或内容特征
     local is_scheduled=0
     echo "$title" | grep -qE "路由状态|发送测试" && is_scheduled=1
     # 如果内容中包含【系统运行状态】或【WAN 口信息】，也认为是定时推送
-    echo "$clean_content" | grep -qE "【系统运行状态】|【WAN 口信息】" && is_scheduled=1
+    echo "$raw_content" | grep -qE "【系统运行状态】|【WAN 口信息】" && is_scheduled=1
+    
+    # 清理 null，对于定时推送保留空行，对于实时推送删除空行
+    if [ "$is_scheduled" -eq "1" ]; then
+        # 定时推送：只清理 null，保留空行
+        local clean_content=$(echo "$raw_content" | sed 's/null//g')
+    else
+        # 实时推送：清理 null 和空行
+        local clean_content=$(echo "$raw_content" | sed 's/null//g' | sed 's/^[[:space:]]*$//g' | sed '/^$/d')
+    fi
 
     # 根据是否配置 media_id 决定消息类型
     if [ -n "${wechat_media_id:-}" ]; then
