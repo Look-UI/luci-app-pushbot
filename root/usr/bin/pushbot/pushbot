@@ -1267,20 +1267,20 @@ function current_device(){
 	
 	if [ "$is_wechat_app" -eq "1" ]; then
 		# 企业微信应用推送 - 使用清晰的列表格式
-		content="${content}${str_splitline}${str_title_start}${font_blue} 现有在线设备 ${logrow} 台${font_end}${str_title_end}"
+		content="${content}${str_splitline}【现有在线设备】运行中： ${logrow} 台"
 		local IPLIST=`cat ${dir}ipAddress|awk '{print $1}'`
 		for ip in $IPLIST; do
 			local ip_mac=`getmac ${ip}`
 			local ip_total=`usage get ${ip_mac}`
 			local ip_name=`getname ${ip} ${ip_mac}`
-			content="${content}${str_linefeed}${str_linefeed}${font_green2}[${ip_name}]${font_end2} ${ip}"
-			[ ! -z "$ip_total" ] && content="${content}${str_linefeed}${str_tab}- 总计流量：${ip_total}"
+			content="${content}${str_linefeed}${str_linefeed}[${ip_name}] ${ip}"
+			[ ! -z "$ip_total" ] && content="${content}${str_linefeed}  - 总计流量：${ip_total}"
 			# 添加在线时间
 			local time_up=`cat ${dir}ipAddress|grep -w ${ip}|awk '{print $4}'|grep -v "^$"|sort -u|head -n1`
 			if [ ! -z "$time_up" ]; then
 				local time1=`date +%s`
 				local time1=$(time_for_humans `expr ${time1} - ${time_up}`)
-				content="${content}${str_linefeed}${str_tab}- 在线时间：${time1}"
+				content="${content}${str_linefeed}  - 在线时间：${time1}"
 			fi
 			unset ip_total ip_mac ip_name time_up time1
 		done
@@ -1542,10 +1542,12 @@ function send(){
 	echo "$jsonpath" | grep -q "ent_wechat_app" && is_wechat_app=1
 	if [ "$is_wechat_app" -eq "1" ]; then
 		local nl=$'\n'  # 实际的换行符
-		local tab="  "  # 2个空格缩进
+		local bullet="• "  # 项目符号
+		local section_break=$'\n\n'  # 段落分隔
 	else
 		local nl="${str_linefeed}"
-		local tab="${str_tab}"
+		local bullet="${str_tab}"
+		local section_break="${str_splitline}"
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$router_status" ] && [ "$router_status" -eq "1" ]; then
@@ -1559,47 +1561,54 @@ function send(){
 			local Qwai_status="已断开！"
 		fi
 		local systemstatustime=`cat /proc/uptime|awk -F. '{run_days=$1 / 86400;run_hour=($1 % 86400)/3600;run_minute=($1 % 3600)/60;run_second=$1 % 60;printf("运行时间：%d天%d时%d分%d秒",run_days,run_hour,run_minute,run_second)}' 2>/dev/null || echo "运行时间：0天0时0分0秒"`;unset run_days run_hour run_minute run_second
-		local send_content="${send_content}${str_splitline}【系统运行状态】"
-		local send_content="${send_content}${nl}${tab}平均负载：${systemload}"
-		local send_content="${send_content}${nl}${tab}CPU占用：${cpuload}"
-		local send_content="${send_content}${nl}${tab}内存占用：${ramload}"
-		local send_content="${send_content}${nl}${tab}全球互联：${Qwai_status}"
-		local send_content="${send_content}${nl}${tab}${systemstatustime}"
+		local send_content="${send_content}${section_break}【系统运行状态】"
+		local send_content="${send_content}${nl}${bullet}平均负载：${systemload}"
+		local send_content="${send_content}${nl}${bullet}CPU占用：${cpuload}"
+		local send_content="${send_content}${nl}${bullet}内存占用：${ramload}"
+		local send_content="${send_content}${nl}${bullet}全球互联：${Qwai_status}"
+		local send_content="${send_content}${nl}${bullet}${systemstatustime}"
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$router_temp" ] && [ "$router_temp" -eq "1" ]; then
 		local cputemp=`soc_temp`
-		[ ! -z "$cputemp" ] && local send_content="${send_content}${str_splitline}【设备温度】${nl}${tab}CPU：${cputemp}℃"
-		[ -z "$cputemp" ] && local send_content="${send_content}${str_splitline}【设备温度】${nl}${tab}无法获取设备温度"
+		[ ! -z "$cputemp" ] && local send_content="${send_content}${section_break}【设备温度】${nl}${bullet}CPU：${cputemp}℃"
+		[ -z "$cputemp" ] && local send_content="${send_content}${section_break}【设备温度】${nl}${bullet}无法获取设备温度"
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$router_wan" ] && [ "$router_wan" -eq "1" ]; then
 		local send_wanIP=`getip wanipv4`;local send_hostIP=`getip hostipv4`
-		local send_content="${send_content}${str_splitline}【WAN 口信息】${nl}${tab}内网IP (LAN)：${send_wanIP}"
-		local send_content="${send_content}${nl}${tab}公网IP (WAN)：${send_hostIP}"
+		local send_content="${send_content}${section_break}【WAN 口信息】${nl}${bullet}内网IP (LAN)： ${send_wanIP}"
+		local send_content="${send_content}${nl}${bullet}公网IP (WAN)： ${send_hostIP}"
 		if [ ! -z "$pushbot_ipv6" ] && [ "$pushbot_ipv6" -ne "0" ]; then
 			local send_wanIPv6=`getip wanipv6`;local send_hostIPv6=`getip hostipv6`
-			local send_content="${send_content}${nl}${tab}内网IPv6 (LAN)：${send_wanIPv6}"
-			local send_content="${send_content}${nl}${tab}公网IPv6 (WAN)：${send_hostIPv6}"
+			local send_content="${send_content}${nl}${bullet}内网IPv6 (LAN)： ${send_wanIPv6}"
+			local send_content="${send_content}${nl}${bullet}公网IPv6 (WAN)： ${send_hostIPv6}"
 		fi
 		# 检测是否为二级路由
 		local is_private_ip=0
 		echo "$send_wanIP" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)' && is_private_ip=1
 		if [ "$is_private_ip" -eq "1" ]; then
-			local send_content="${send_content}${nl}${tab}检测到二级路由模式（WAN为私有IP）"
+			local send_content="${send_content}${nl}${bullet}检测到二级路由模式（WAN为私有IP）"
 		elif ( ! echo "$send_wanIP"|grep -q -w ${send_hostIP} ); then
-			local send_content="${send_content}${nl}${tab}外网 ip 与接口 ip 不一致，你的 ip 不是公网 ip"
+			local send_content="${send_content}${nl}${bullet}外网 ip 与接口 ip 不一致，你的 ip 不是公网 ip"
 		fi
 		local interfaceuptime=`getinterfaceuptime`
 		[ ! -z "$interfaceuptime" ] && local wanstatustime=`getinterfaceuptime|awk -F. '{run_days=$1 / 86400;run_hour=($1 % 86400)/3600;run_minute=($1 % 3600)/60;run_second=$1 % 60;printf("在线时间：%d天%d时%d分%d秒",run_days,run_hour,run_minute,run_second)}' 2>/dev/null || echo "在线时间：0天0时0分0秒"` && unset run_days run_hour run_minute run_second
-		local send_content="${send_content}${nl}${tab}${wanstatustime}"
+		local send_content="${send_content}${nl}${bullet}${wanstatustime}"
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$client_list" ] && [ "$client_list" -eq "1" ]; then
 		wait
 		local IPLIST=`cat ${dir}ipAddress 2>/dev/null|awk '{print $1}'`
 		[ -f ${dir}ipAddress ] && local logrow=$(grep -c "" ${dir}ipAddress) || local logrow="0"
-		[ "$logrow" -eq "0" ] && local send_content="${send_content}${str_splitline}【当前无在线设备】" || local send_content="${send_content}${str_splitline}【现有在线设备 ${logrow} 台】"
+		
+		if [ "$is_wechat_app" -eq "1" ]; then
+			# 企业微信应用推送格式
+			[ "$logrow" -eq "0" ] && local send_content="${send_content}${section_break}【当前无在线设备】" || local send_content="${send_content}${section_break}【现有在线设备】运行中： ${logrow} 台"
+		else
+			# 其他推送方式格式
+			[ "$logrow" -eq "0" ] && local send_content="${send_content}${str_splitline}【当前无在线设备】" || local send_content="${send_content}${str_splitline}【现有在线设备 ${logrow} 台】"
+		fi
 		
 		for ip in $IPLIST; do
 			local time_up=`cat ${dir}ipAddress|grep -w ${ip}|awk '{print $4}'|grep -v "^$"|sort -u|head -n1`
@@ -1612,13 +1621,13 @@ function send(){
 			if [ "$is_wechat_app" -eq "1" ]; then
 				# 企业微信应用推送 - 清晰的列表格式
 				local send_content="${send_content}${nl}${nl}[${ip_name}] ${ip}"
-				[ ! -z "$ip_total" ] && local send_content="${send_content}${nl}${tab}- 总计流量：${ip_total}"
-				local send_content="${send_content}${nl}${tab}- 在线时间：${time1}"
+				[ ! -z "$ip_total" ] && local send_content="${send_content}${nl}  - 总计流量：${ip_total}"
+				local send_content="${send_content}${nl}  - 在线时间：${time1}"
 			else
 				# 其他推送方式 - 使用原有格式
 				local ip_name=`cut_str $ip_name 18`
 				[ ! -z "$ip_total" ] && local ip_total="总计流量：${ip_total}  "
-				local send_content="${send_content}${nl}${tab}${font_green2}[${ip_name}]${font_end2}  ${ip}${nl}${tab}${ip_total}在线 ${time1}"
+				local send_content="${send_content}${nl}${bullet}${font_green2}[${ip_name}]${font_end2}  ${ip}${nl}${bullet}${ip_total}在线 ${time1}"
 			fi
 			unset ip_total time_down time_up time1 ip_mac ip_name
 		done
