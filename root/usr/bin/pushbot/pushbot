@@ -1561,7 +1561,8 @@ function send(){
 			local Qwai_status="已断开！"
 		fi
 		local systemstatustime=`cat /proc/uptime|awk -F. '{run_days=$1 / 86400;run_hour=($1 % 86400)/3600;run_minute=($1 % 3600)/60;run_second=$1 % 60;printf("运行时间：%d天%d时%d分%d秒",run_days,run_hour,run_minute,run_second)}' 2>/dev/null || echo "运行时间：0天0时0分0秒"`;unset run_days run_hour run_minute run_second
-		local send_content="${send_content}${section_break}【系统运行状态】"
+		[ ! -z "$send_content" ] && local send_content="${send_content}${section_break}"
+		local send_content="${send_content}【系统运行状态】"
 		local send_content="${send_content}${nl}${bullet}平均负载：${systemload}"
 		local send_content="${send_content}${nl}${bullet}CPU占用：${cpuload}"
 		local send_content="${send_content}${nl}${bullet}内存占用：${ramload}"
@@ -1571,13 +1572,19 @@ function send(){
 
 	if [ -z "$1" ] && [ ! -z "$router_temp" ] && [ "$router_temp" -eq "1" ]; then
 		local cputemp=`soc_temp`
-		[ ! -z "$cputemp" ] && local send_content="${send_content}${section_break}【设备温度】${nl}${bullet}CPU：${cputemp}℃"
-		[ -z "$cputemp" ] && local send_content="${send_content}${section_break}【设备温度】${nl}${bullet}无法获取设备温度"
+		if [ ! -z "$cputemp" ]; then
+			[ ! -z "$send_content" ] && local send_content="${send_content}${section_break}"
+			local send_content="${send_content}【设备温度】${nl}${bullet}CPU：${cputemp}℃"
+		elif [ -z "$cputemp" ]; then
+			[ ! -z "$send_content" ] && local send_content="${send_content}${section_break}"
+			local send_content="${send_content}【设备温度】${nl}${bullet}无法获取设备温度"
+		fi
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$router_wan" ] && [ "$router_wan" -eq "1" ]; then
 		local send_wanIP=`getip wanipv4`;local send_hostIP=`getip hostipv4`
-		local send_content="${send_content}${section_break}【WAN 口信息】${nl}${bullet}内网IP (LAN)： ${send_wanIP}"
+		[ ! -z "$send_content" ] && local send_content="${send_content}${section_break}"
+		local send_content="${send_content}【WAN 口信息】${nl}${bullet}内网IP (LAN)： ${send_wanIP}"
 		local send_content="${send_content}${nl}${bullet}公网IP (WAN)： ${send_hostIP}"
 		if [ ! -z "$pushbot_ipv6" ] && [ "$pushbot_ipv6" -ne "0" ]; then
 			local send_wanIPv6=`getip wanipv6`;local send_hostIPv6=`getip hostipv6`
@@ -1592,9 +1599,6 @@ function send(){
 		elif ( ! echo "$send_wanIP"|grep -q -w ${send_hostIP} ); then
 			local send_content="${send_content}${nl}${bullet}外网 ip 与接口 ip 不一致，你的 ip 不是公网 ip"
 		fi
-		local interfaceuptime=`getinterfaceuptime`
-		[ ! -z "$interfaceuptime" ] && local wanstatustime=`getinterfaceuptime|awk -F. '{run_days=$1 / 86400;run_hour=($1 % 86400)/3600;run_minute=($1 % 3600)/60;run_second=$1 % 60;printf("在线时间：%d天%d时%d分%d秒",run_days,run_hour,run_minute,run_second)}' 2>/dev/null || echo "在线时间：0天0时0分0秒"` && unset run_days run_hour run_minute run_second
-		local send_content="${send_content}${nl}${bullet}${wanstatustime}"
 	fi
 
 	if [ -z "$1" ] && [ ! -z "$client_list" ] && [ "$client_list" -eq "1" ]; then
@@ -1604,7 +1608,8 @@ function send(){
 		
 		if [ "$is_wechat_app" -eq "1" ]; then
 			# 企业微信应用推送格式
-			[ "$logrow" -eq "0" ] && local send_content="${send_content}${section_break}【当前无在线设备】" || local send_content="${send_content}${section_break}【现有在线设备】运行中： ${logrow} 台"
+			[ ! -z "$send_content" ] && local send_content="${send_content}${section_break}"
+			[ "$logrow" -eq "0" ] && local send_content="${send_content}【当前无在线设备】" || local send_content="${send_content}【现有在线设备】运行中： ${logrow} 台"
 		else
 			# 其他推送方式格式
 			[ "$logrow" -eq "0" ] && local send_content="${send_content}${str_splitline}【当前无在线设备】" || local send_content="${send_content}${str_splitline}【现有在线设备 ${logrow} 台】"
