@@ -244,8 +244,12 @@ function diy_send(){
                 # 清理尾部空白
                 sed 's/[[:space:]]*$//')
         else
-            # 实时推送：使用格式化后的内容，截取前 500 个字符
-            local digest_content=$(echo "$formatted_clean_content" | head -c 500 | sed 's/[[:space:]]*$//')
+            # 实时推送（设备上下线）：只显示状态变化和在线设备总数，不显示设备列表
+            local digest_content=$(echo "$formatted_clean_content" | \
+                # 提取到【现有在线设备】运行中： X 台为止，不包含后面的设备列表
+                awk 'BEGIN{print_flag=1} /【现有在线设备】运行中：/{print; print_flag=0} print_flag==1{print}' | \
+                # 清理尾部空白
+                sed 's/[[:space:]]*$//')
         fi
 
         jq -n \
