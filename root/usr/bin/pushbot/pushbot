@@ -179,9 +179,13 @@ function diy_send(){
 
     # 根据是否配置 media_id 决定消息类型
     if [ -n "${wechat_media_id:-}" ]; then
-        # mpnews 模式（图文卡片） 
-        # 格式化内容：与 text 模式保持一致
-        local formatted_clean_content=$(echo "$clean_content" | \
+        # mpnews 模式（图文卡片）
+        if [ "$is_scheduled" -eq "1" ]; then
+            # 定时推送：内容已格式化，直接使用
+            local formatted_clean_content="$clean_content"
+        else
+            # 实时推送：需要格式化处理
+            local formatted_clean_content=$(echo "$clean_content" | \
             # 标题归一化（含未加方括号标题），标题后补换行
             sed 's/【系统运行状态】[[:space:]]*/\n\n【系统运行状态】\n/g' | \
             sed 's/【设备温度】[[:space:]]*/\n\n【设备温度】\n/g' | \
@@ -214,6 +218,7 @@ function diy_send(){
             # 设备详情行
             sed 's/总计流量：/\n- 总计流量：/g' | \
             sed 's/  在线/\n- 在线/g')
+        fi
         
         # 将所有换行安全地替换为 <br/>（包括记录分隔换行）
         local content_body=$(printf "%s" "$formatted_clean_content" | sed ':a;N;$!ba;s/\r//g; s/\n/<br\/>/g')
