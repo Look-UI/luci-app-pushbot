@@ -41,7 +41,7 @@ a.optional = true
 a=s:taboption("basic", ListValue,"jsonpath",translate("推送模式"))
 a.default="/usr/bin/pushbot/api/dingding.json"
 a.rmempty = true
--- 按用户要求排序：钉钉/飞书/Bark/PushPlus/PushDeer/企业微信应用/企业微信机器人
+-- 推送平台排序：钉钉/飞书/Bark/PushPlus/PushDeer/企业微信应用/企业微信机器人
 a:value("/usr/bin/pushbot/api/dingding.json",translate("钉钉"))
 a:value("/usr/bin/pushbot/api/feishu.json",translate("飞书"))
 a:value("/usr/bin/pushbot/api/bark.json",translate("Bark"))
